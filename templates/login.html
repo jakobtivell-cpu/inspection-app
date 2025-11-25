@@ -1,0 +1,20 @@
+{% extends "layout.html" %}
+{% block content %}
+  <div class="card card-center">
+    <h1 class="card-title">Sign in</h1>
+    <form method="post">
+      <label class="field">
+        <span class="field-label">Username</span>
+        <input type="text" name="username" required autofocus>
+      </label>
+      <label class="field">
+        <span class="field-label">Password</span>
+        <input type="password" name="password" required>
+      </label>
+      <button type="submit" class="btn-primary">Log in</button>
+      <p class="hint">
+        Demo users: <code>admin / admin123</code> or <code>approver / approver123</code>
+      </p>
+    </form>
+  </div>
+{% endblock %}
