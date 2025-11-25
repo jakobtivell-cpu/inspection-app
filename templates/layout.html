@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Inspection Hub</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+    <div class="top-strip">
+      <div class="logo-area">
+        <!-- Replace with your logo if you want -->
+        Inspection Hub
+      </div>
+      <div class="top-strip-right">
+        {% if session.get('username') %}
+          <span class="user-pill">{{ session.get('username') }}</span>
+          <a href="{{ url_for('logout') }}" class="top-link">Logout</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <main class="page">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-zone">
+            {% for category, message in messages %}
+              <div class="flash flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>
