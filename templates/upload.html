@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+{% block content %}
+  <div class="card">
+    <h1 class="card-title">Upload inspection</h1>
+    <form method="post" enctype="multipart/form-data">
+      <div class="form-grid">
+        <label class="field">
+          <span class="field-label">Registration number</span>
+          <input type="text" name="registration_number" required placeholder="ABC123">
+        </label>
+        <label class="field">
+          <span class="field-label">Dealer</span>
+          <input type="text" name="dealer_name" placeholder="Dealer name (optional)">
+        </label>
+      </div>
+      <label class="field">
+        <span class="field-label">Test protocol (PDF)</span>
+        <input type="file" name="pdf_file" accept="application/pdf" required>
+      </label>
+      <button type="submit" class="btn-primary">Upload</button>
+      <a href="{{ url_for('list_inspections') }}" class="btn-ghost">Back to list</a>
+    </form>
+  </div>
+{% endblock %}
