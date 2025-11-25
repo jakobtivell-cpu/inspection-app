@@ -13,7 +13,9 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-me')
 app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'uploads')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Use SQLite by default; can be overridden with DATABASE_URL env var (e.g. Azure DB)
+# Use SQLite by default; override with DATABASE_URL in Azure
+# Example for Azure Postgres:
+# postgresql+psycopg2://USER:PASSWORD@SERVER.postgres.database.azure.com:5432/DBNAME?sslmode=require
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
     'DATABASE_URL',
     'sqlite:///' + os.path.join(BASE_DIR, 'app.db')
@@ -31,7 +33,7 @@ USERS = {
 }
 
 
-def allowed_file(filename):
+def allowed_file(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
@@ -41,7 +43,6 @@ def login_required(view_func):
         if "username" not in session:
             return redirect(url_for("login"))
         return view_func(*args, **kwargs)
-
     return wrapped_view
 
 
@@ -53,12 +54,26 @@ class Inspection(db.Model):
     dealer_name = db.Column(db.String(120), nullable=True)
     pdf_filename = db.Column(db.String(255), nullable=False)
     cost_estimate = db.Column(db.Float, nullable=True)
+
     status_admin = db.Column(db.String(20), default="Pending")
     status_reviewer = db.Column(db.String(20), default="Pending")
+
     comment_admin = db.Column(db.Text, nullable=True)
     comment_reviewer = db.Column(db.Text, nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow
+    )
+
+
+# ---- AUTO CREATE TABLES ON STARTUP (v1 convenience) ----
+# Important for gunicorn/Azure: __main__ block doesn't run there.
+with app.app_context():
+    db.create_all()
+# --------------------------------------------------------
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -99,7 +114,11 @@ def list_inspections():
         like = f"%{q}%"
         query = query.filter(Inspection.registration_number.ilike(like))
     inspections = query.order_by(Inspection.created_at.desc()).all()
-    return render_template("dashboard.html", inspections=inspections, search_query=q)
+    return render_template(
+        "dashboard.html",
+        inspections=inspections,
+        search_query=q
+    )
 
 
 @app.route("/upload", methods=["GET", "POST"])
@@ -166,7 +185,11 @@ def edit_inspection(inspection_id):
         flash("Inspection updated", "success")
         return redirect(url_for("list_inspections"))
 
-    return render_template("edit_inspection.html", inspection=inspection, role=role)
+    return render_template(
+        "edit_inspection.html",
+        inspection=inspection,
+        role=role
+    )
 
 
 @app.route("/inspection/<int:inspection_id>/cost", methods=["POST"])
@@ -189,11 +212,12 @@ def update_cost(inspection_id):
 def view_pdf(inspection_id):
     inspection = Inspection.query.get_or_404(inspection_id)
     return send_from_directory(
-        app.config["UPLOAD_FOLDER"], inspection.pdf_filename, as_attachment=False
+        app.config["UPLOAD_FOLDER"],
+        inspection.pdf_filename,
+        as_attachment=False
     )
 
 
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
+    # Local dev only; Azure runs gunicorn.
     app.run(debug=True)
