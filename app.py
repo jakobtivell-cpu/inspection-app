@@ -5,6 +5,7 @@ from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
+from sqlalchemy import or_
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -14,8 +15,6 @@ app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'uploads')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # Use SQLite by default; override with DATABASE_URL in Azure
-# Example for Azure Postgres:
-# postgresql+psycopg2://USER:PASSWORD@SERVER.postgres.database.azure.com:5432/DBNAME?sslmode=require
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
     'DATABASE_URL',
     'sqlite:///' + os.path.join(BASE_DIR, 'app.db')
@@ -26,11 +25,13 @@ db = SQLAlchemy(app)
 
 ALLOWED_EXTENSIONS = {'pdf'}
 
-# Simple demo users (hard-coded for prototype).
 USERS = {
     "admin": {"password": "admin123", "role": "admin"},
     "approver": {"password": "approver123", "role": "reviewer"},
 }
+
+ADMIN_STATUSES = ["Pending", "Awaiting approval", "Disputed", "Accepted"]
+REVIEWER_STATUSES = ["Pending", "Approved", "Rejected"]
 
 
 def allowed_file(filename: str) -> bool:
@@ -53,27 +54,23 @@ class Inspection(db.Model):
     registration_number = db.Column(db.String(50), nullable=False)
     dealer_name = db.Column(db.String(120), nullable=True)
     pdf_filename = db.Column(db.String(255), nullable=False)
-    cost_estimate = db.Column(db.Float, nullable=True)
 
-    status_admin = db.Column(db.String(20), default="Pending")
+    cost_estimate = db.Column(db.Integer, nullable=True)      # admin editable
+    accepted_cost = db.Column(db.Integer, nullable=True)     # approver editable
+
+    status_admin = db.Column(db.String(30), default="Pending")
     status_reviewer = db.Column(db.String(20), default="Pending")
 
     comment_admin = db.Column(db.Text, nullable=True)
     comment_reviewer = db.Column(db.Text, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(
-        db.DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
-# ---- AUTO CREATE TABLES ON STARTUP (v1 convenience) ----
-# Important for gunicorn/Azure: __main__ block doesn't run there.
+# Auto-create tables on startup (works under gunicorn)
 with app.app_context():
     db.create_all()
-# --------------------------------------------------------
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -107,18 +104,20 @@ def index():
 @app.route("/inspections")
 @login_required
 def list_inspections():
-    # Search by registration number
     q = request.args.get("q", "").strip()
     query = Inspection.query
     if q:
         like = f"%{q}%"
-        query = query.filter(Inspection.registration_number.ilike(like))
+        query = query.filter(
+            or_(
+                Inspection.registration_number.ilike(like),
+                Inspection.dealer_name.ilike(like),
+                Inspection.status_admin.ilike(like),
+                Inspection.status_reviewer.ilike(like),
+            )
+        )
     inspections = query.order_by(Inspection.created_at.desc()).all()
-    return render_template(
-        "dashboard.html",
-        inspections=inspections,
-        search_query=q
-    )
+    return render_template("dashboard.html", inspections=inspections, search_query=q)
 
 
 @app.route("/upload", methods=["GET", "POST"])
@@ -170,40 +169,68 @@ def edit_inspection(inspection_id):
     role = session.get("role")
 
     if request.method == "POST":
-        # Cost estimate editable here too
-        cost_str = request.form.get("cost_estimate", "").strip()
-        inspection.cost_estimate = float(cost_str) if cost_str else None
-
+        # Role-based edits
         if role == "admin":
+            cost_str = request.form.get("cost_estimate", "").strip()
+            inspection.cost_estimate = int(cost_str) if cost_str else None
+
             inspection.comment_admin = request.form.get("comment_admin", "").strip() or None
-            inspection.status_admin = request.form.get("status_admin", inspection.status_admin)
-        else:
+            new_status = request.form.get("status_admin", inspection.status_admin)
+            if new_status in ADMIN_STATUSES:
+                inspection.status_admin = new_status
+
+        else:  # reviewer / approver
+            accepted_str = request.form.get("accepted_cost", "").strip()
+            inspection.accepted_cost = int(accepted_str) if accepted_str else None
+
             inspection.comment_reviewer = request.form.get("comment_reviewer", "").strip() or None
-            inspection.status_reviewer = request.form.get("status_reviewer", inspection.status_reviewer)
+            new_status = request.form.get("status_reviewer", inspection.status_reviewer)
+            if new_status in REVIEWER_STATUSES:
+                inspection.status_reviewer = new_status
 
         db.session.commit()
         flash("Inspection updated", "success")
         return redirect(url_for("list_inspections"))
 
-    return render_template(
-        "edit_inspection.html",
-        inspection=inspection,
-        role=role
-    )
+    return render_template("edit_inspection.html", inspection=inspection, role=role,
+                           admin_statuses=ADMIN_STATUSES, reviewer_statuses=REVIEWER_STATUSES)
 
 
 @app.route("/inspection/<int:inspection_id>/cost", methods=["POST"])
 @login_required
 def update_cost(inspection_id):
-    # Inline editable column for cost estimate in the table
     inspection = Inspection.query.get_or_404(inspection_id)
+    role = session.get("role")
+    if role != "admin":
+        flash("Only admin can edit cost estimate", "error")
+        return redirect(url_for("list_inspections"))
+
     cost_str = request.form.get("cost_estimate", "").strip()
     try:
-        inspection.cost_estimate = float(cost_str) if cost_str else None
+        inspection.cost_estimate = int(cost_str) if cost_str else None
         db.session.commit()
         flash("Cost estimate updated", "success")
     except ValueError:
         flash("Invalid cost estimate", "error")
+    return redirect(url_for("list_inspections"))
+
+
+@app.route("/inspection/<int:inspection_id>/accepted_cost", methods=["POST"])
+@login_required
+def update_accepted_cost(inspection_id):
+    inspection = Inspection.query.get_or_404(inspection_id)
+    role = session.get("role")
+    if role != "reviewer":
+        flash("Only approver can edit accepted cost", "error")
+        return redirect(url_for("list_inspections"))
+
+    cost_str = request.form.get("accepted_cost", "").strip()
+    try:
+        inspection.accepted_cost = int(cost_str) if cost_str else None
+        db.session.commit()
+        flash("Accepted cost updated", "success")
+    except ValueError:
+        flash("Invalid accepted cost", "error")
     return redirect(url_for("list_inspections"))
 
 
@@ -219,5 +246,4 @@ def view_pdf(inspection_id):
 
 
 if __name__ == "__main__":
-    # Local dev only; Azure runs gunicorn.
     app.run(debug=True)
