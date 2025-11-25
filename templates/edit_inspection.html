@@ -1,0 +1,74 @@
+{% extends "layout.html" %}
+{% block content %}
+  <div class="card">
+    <div class="card-header-row">
+      <div>
+        <h1 class="card-title">Edit inspection</h1>
+        <p class="subtle">
+          Registration {{ inspection.registration_number }}
+          {% if inspection.dealer_name %} · {{ inspection.dealer_name }}{% endif %}
+        </p>
+      </div>
+      <div>
+        <a href="{{ url_for('view_pdf', inspection_id=inspection.id) }}" class="btn-secondary" target="_blank">
+          Open PDF
+        </a>
+      </div>
+    </div>
+
+    <form method="post">
+      <div class="form-grid">
+        <label class="field">
+          <span class="field-label">Cost estimate</span>
+          <input type="number" step="0.01" name="cost_estimate"
+                 value="{{ '%.2f' % inspection.cost_estimate if inspection.cost_estimate is not none else '' }}">
+        </label>
+
+        {% if role == 'admin' %}
+          <label class="field">
+            <span class="field-label">Admin status</span>
+            <select name="status_admin">
+              {% for s in ['Pending', 'Approved', 'Rejected'] %}
+                <option value="{{ s }}" {% if inspection.status_admin == s %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        {% else %}
+          <label class="field">
+            <span class="field-label">Reviewer status</span>
+            <select name="status_reviewer">
+              {% for s in ['Pending', 'Approved', 'Rejected'] %}
+                <option value="{{ s }}" {% if inspection.status_reviewer == s %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        {% endif %}
+      </div>
+
+      <div class="form-grid">
+        <label class="field">
+          <span class="field-label">Admin comment</span>
+          {% if role == 'admin' %}
+            <textarea name="comment_admin" rows="4" placeholder="Notes from initial assessment">{{ inspection.comment_admin or '' }}</textarea>
+          {% else %}
+            <textarea rows="4" disabled>{{ inspection.comment_admin or '' }}</textarea>
+          {% endif %}
+        </label>
+
+        <label class="field">
+          <span class="field-label">Reviewer comment</span>
+          {% if role == 'reviewer' %}
+            <textarea name="comment_reviewer" rows="4" placeholder="Final approval notes">{{ inspection.comment_reviewer or '' }}</textarea>
+          {% else %}
+            <textarea rows="4" disabled>{{ inspection.comment_reviewer or '' }}</textarea>
+          {% endif %}
+        </label>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">Save changes</button>
+        <a href="{{ url_for('list_inspections') }}" class="btn-ghost">Cancel</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}
