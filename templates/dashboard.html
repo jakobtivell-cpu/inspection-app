@@ -1,0 +1,86 @@
+{% extends "layout.html" %}
+{% block content %}
+  <div class="page-header">
+    <div>
+      <h1>Inspections</h1>
+      <p class="subtle">Search by registration number, review comments, and track approvals.</p>
+    </div>
+    <div class="page-header-actions">
+      <a href="{{ url_for('upload_inspection') }}" class="btn-secondary">+ Upload inspection</a>
+    </div>
+  </div>
+
+  <form method="get" action="{{ url_for('list_inspections') }}" class="search-row">
+    <label class="field search-field">
+      <span class="field-label">Search registration number</span>
+      <div class="search-input-wrap">
+        <input type="text" name="q" value="{{ search_query or '' }}" placeholder="e.g. ABC123">
+        <button type="submit" class="btn-ghost">Search</button>
+      </div>
+    </label>
+  </form>
+
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Reg. no</th>
+          <th>Dealer</th>
+          <th>Uploaded</th>
+          <th>Cost estimate</th>
+          <th>Admin status</th>
+          <th>Reviewer status</th>
+          <th>Admin comment</th>
+          <th>Reviewer comment</th>
+          <th>PDF</th>
+          <th>Edit</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inspection in inspections %}
+          <tr>
+            <td>{{ inspection.registration_number }}</td>
+            <td>{{ inspection.dealer_name or "-" }}</td>
+            <td>{{ inspection.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+            <td>
+              <form method="post" action="{{ url_for('update_cost', inspection_id=inspection.id) }}" class="inline-form">
+                <input type="number" step="0.01" name="cost_estimate"
+                       value="{{ '%.2f' % inspection.cost_estimate if inspection.cost_estimate is not none else '' }}"
+                       class="input-cost">
+                <button type="submit" class="btn-link">Save</button>
+              </form>
+            </td>
+            <td>
+              <span class="status-pill status-{{ inspection.status_admin|lower }}">
+                {{ inspection.status_admin }}
+              </span>
+            </td>
+            <td>
+              <span class="status-pill status-{{ inspection.status_reviewer|lower }}">
+                {{ inspection.status_reviewer }}
+              </span>
+            </td>
+            <td class="comment-cell">
+              {{ inspection.comment_admin or "-" }}
+            </td>
+            <td class="comment-cell">
+              {{ inspection.comment_reviewer or "-" }}
+            </td>
+            <td>
+              <a href="{{ url_for('view_pdf', inspection_id=inspection.id) }}" class="btn-ghost" target="_blank">View</a>
+            </td>
+            <td>
+              <a href="{{ url_for('edit_inspection', inspection_id=inspection.id) }}" class="btn-link">Open</a>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="10" class="empty-state">
+              No inspections yet. Upload your first PDF to get started.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}
