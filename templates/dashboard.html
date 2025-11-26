@@ -37,18 +37,18 @@
           <th>Edit</th>
         </tr>
       </thead>
+
       <tbody>
         {% for inspection in inspections %}
           <tr>
             <td>
-              <a href="{{ url_for('view_pdf', inspection_id=inspection.id) }}" class="btn-ghost" target="_blank">View</a>
+              <a href="{{ url_for('view_pdf', inspection_id=inspection.id) }}"
+                 class="btn-ghost"
+                 target="_blank">View</a>
             </td>
-
             <td>{{ inspection.registration_number }}</td>
             <td>{{ inspection.dealer_name or "-" }}</td>
             <td>{{ inspection.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
-
-            <!-- Cost estimate: admin-only inline edit -->
             <td>
               {% if session.get('role') == 'admin' %}
                 <form method="post" action="{{ url_for('update_cost', inspection_id=inspection.id) }}" class="inline-form">
@@ -61,8 +61,6 @@
                 {{ inspection.cost_estimate if inspection.cost_estimate is not none else '-' }}
               {% endif %}
             </td>
-
-            <!-- Accepted cost: approver-only inline edit -->
             <td>
               {% if session.get('role') == 'reviewer' %}
                 <form method="post" action="{{ url_for('update_accepted_cost', inspection_id=inspection.id) }}" class="inline-form">
@@ -75,21 +73,18 @@
                 {{ inspection.accepted_cost if inspection.accepted_cost is not none else '-' }}
               {% endif %}
             </td>
-
             <td>
               <span class="status-pill status-{{ inspection.status_admin|lower|replace(' ','-') }}">
                 {{ inspection.status_admin }}
               </span>
             </td>
             <td>
-              <span class="status-pill status-{{ inspection.status_reviewer|lower }}">
+              <span class="status-pill status-{{ inspection.status_reviewer|lower|replace(' ','-') }}">
                 {{ inspection.status_reviewer }}
               </span>
             </td>
-
             <td class="comment-cell">{{ inspection.comment_admin or "-" }}</td>
             <td class="comment-cell">{{ inspection.comment_reviewer or "-" }}</td>
-
             <td>
               <a href="{{ url_for('edit_inspection', inspection_id=inspection.id) }}" class="btn-link">Open</a>
             </td>
@@ -102,4 +97,4 @@
       </tbody>
     </table>
   </div>
-{% en%}
+{% endblock %}
