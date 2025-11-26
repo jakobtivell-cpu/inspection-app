@@ -190,6 +190,7 @@ textarea:focus {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  white-space: nowrap; /* ADDED: never wrap button text */
 }
 
 .btn-primary {
@@ -255,7 +256,7 @@ textarea:focus {
 .table-wrapper {
   border-radius: 12px;
   border: 1px solid #e4e4e4;
-  overflow-x: auto;      /* CHANGED: allow horizontal scroll if needed */
+  overflow-x: auto;
   overflow-y: hidden;
   background-color: #ffffff;
   box-shadow: 0 10px 30px rgba(0,0,0,0.02);
@@ -265,7 +266,7 @@ textarea:focus {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
-  table-layout: fixed;  /* ADDED: prevents columns from expanding on long text */
+  table-layout: fixed;
 }
 
 .data-table thead {
@@ -277,17 +278,22 @@ textarea:focus {
   padding: 10px 12px;
   text-align: left;
   border-bottom: 1px solid #f0f0f0;
-  vertical-align: top;          /* ADDED: nicer multi-line cells */
-  overflow-wrap: anywhere;      /* ADDED: breaks long strings inside the cell */
-  word-break: break-word;       /* ADDED: fallback for older browsers */
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.data-table th {
-  font-weight: 500;
-  color: #555555;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+/* ADDED: do NOT allow wrapping inside small controls in the table */
+.data-table td a,
+.data-table td button,
+.data-table td .btn-link,
+.data-table td .btn-primary,
+.data-table td .btn-secondary,
+.data-table td .btn-ghost,
+.data-table td .inline-form {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .data-table tbody tr:hover {
@@ -306,6 +312,7 @@ textarea:focus {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: nowrap; /* ADDED: keep input + Save on same line */
 }
 
 .input-cost {
@@ -323,7 +330,7 @@ textarea:focus {
   border-radius: 999px;
   font-size: 11px;
   border: 1px solid #d5d5d5;
-  white-space: nowrap;  /* ADDED: pills should not wrap */
+  white-space: nowrap;
 }
 
 .status-pending {
@@ -344,10 +351,10 @@ textarea:focus {
 
 .comment-cell {
   max-width: 220px;
-  white-space: normal;       /* CHANGED: allow wrapping */
-  overflow: visible;         /* CHANGED: stop clipping */
-  text-overflow: unset;      /* CHANGED: no ellipsis */
-  line-height: 1.25;         /* ADDED: better readability when wrapping */
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  line-height: 1.25;
 }
 
 /* Optional utility for cells that must never wrap */
