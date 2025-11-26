@@ -13,8 +13,6 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-me')
 app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'uploads')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
-# Use SQLite by default; override with DATABASE_URL in Azure
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
     'DATABASE_URL',
     'sqlite:///' + os.path.join(BASE_DIR, 'app.db')
@@ -54,21 +52,16 @@ class Inspection(db.Model):
     registration_number = db.Column(db.String(50), nullable=False)
     dealer_name = db.Column(db.String(120), nullable=True)
     pdf_filename = db.Column(db.String(255), nullable=False)
-
-    cost_estimate = db.Column(db.Integer, nullable=True)      # admin editable
-    accepted_cost = db.Column(db.Integer, nullable=True)     # approver editable
-
+    cost_estimate = db.Column(db.Integer, nullable=True)
+    accepted_cost = db.Column(db.Integer, nullable=True)
     status_admin = db.Column(db.String(30), default="Pending")
     status_reviewer = db.Column(db.String(20), default="Pending")
-
     comment_admin = db.Column(db.Text, nullable=True)
     comment_reviewer = db.Column(db.Text, nullable=True)
-
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
-# Auto-create tables on startup (works under gunicorn)
 with app.app_context():
     db.create_all()
 
@@ -127,15 +120,12 @@ def upload_inspection():
         registration_number = request.form.get("registration_number", "").strip()
         dealer_name = request.form.get("dealer_name", "").strip()
         file = request.files.get("pdf_file")
-
         if not registration_number:
             flash("Registration number is required", "error")
             return redirect(request.url)
-
         if not file or file.filename == "":
             flash("Please select a PDF file", "error")
             return redirect(request.url)
-
         if not allowed_file(file.filename):
             flash("Only PDF files are allowed", "error")
             return redirect(request.url)
@@ -158,31 +148,25 @@ def upload_inspection():
 
         flash("Inspection uploaded", "success")
         return redirect(url_for("list_inspections"))
-
     return render_template("upload.html")
 
 
 @app.route("/inspection/<int:inspection_id>/edit", methods=["GET", "POST"])
 @login_required
-def edit_inspection(inspection_id):
+def edit_inspection(inspection_id: int):
     inspection = Inspection.query.get_or_404(inspection_id)
     role = session.get("role")
-
     if request.method == "POST":
-        # Role-based edits
         if role == "admin":
             cost_str = request.form.get("cost_estimate", "").strip()
             inspection.cost_estimate = int(cost_str) if cost_str else None
-
             inspection.comment_admin = request.form.get("comment_admin", "").strip() or None
             new_status = request.form.get("status_admin", inspection.status_admin)
             if new_status in ADMIN_STATUSES:
                 inspection.status_admin = new_status
-
-        else:  # reviewer / approver
+        else:
             accepted_str = request.form.get("accepted_cost", "").strip()
             inspection.accepted_cost = int(accepted_str) if accepted_str else None
-
             inspection.comment_reviewer = request.form.get("comment_reviewer", "").strip() or None
             new_status = request.form.get("status_reviewer", inspection.status_reviewer)
             if new_status in REVIEWER_STATUSES:
@@ -191,20 +175,22 @@ def edit_inspection(inspection_id):
         db.session.commit()
         flash("Inspection updated", "success")
         return redirect(url_for("list_inspections"))
-
-    return render_template("edit_inspection.html", inspection=inspection, role=role,
-                           admin_statuses=ADMIN_STATUSES, reviewer_statuses=REVIEWER_STATUSES)
+    return render_template(
+        "edit_inspection.html",
+        inspection=inspection,
+        role=role,
+        admin_statuses=ADMIN_STATUSES,
+        reviewer_statuses=REVIEWER_STATUSES,
+    )
 
 
 @app.route("/inspection/<int:inspection_id>/cost", methods=["POST"])
 @login_required
-def update_cost(inspection_id):
+def update_cost(inspection_id: int):
     inspection = Inspection.query.get_or_404(inspection_id)
-    role = session.get("role")
-    if role != "admin":
+    if session.get("role") != "admin":
         flash("Only admin can edit cost estimate", "error")
         return redirect(url_for("list_inspections"))
-
     cost_str = request.form.get("cost_estimate", "").strip()
     try:
         inspection.cost_estimate = int(cost_str) if cost_str else None
@@ -217,13 +203,11 @@ def update_cost(inspection_id):
 
 @app.route("/inspection/<int:inspection_id>/accepted_cost", methods=["POST"])
 @login_required
-def update_accepted_cost(inspection_id):
+def update_accepted_cost(inspection_id: int):
     inspection = Inspection.query.get_or_404(inspection_id)
-    role = session.get("role")
-    if role != "reviewer":
+    if session.get("role") != "reviewer":
         flash("Only approver can edit accepted cost", "error")
         return redirect(url_for("list_inspections"))
-
     cost_str = request.form.get("accepted_cost", "").strip()
     try:
         inspection.accepted_cost = int(cost_str) if cost_str else None
@@ -236,7 +220,7 @@ def update_accepted_cost(inspection_id):
 
 @app.route("/inspection/<int:inspection_id>/pdf")
 @login_required
-def view_pdf(inspection_id):
+def view_pdf(inspection_id: int):
     inspection = Inspection.query.get_or_404(inspection_id)
     return send_from_directory(
         app.config["UPLOAD_FOLDER"],
