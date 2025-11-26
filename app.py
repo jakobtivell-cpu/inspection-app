@@ -5,7 +5,7 @@ from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
-from sqlalchemy import or_
+from sqlalchemy import or_, text, inspect
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -13,9 +13,16 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-me')
 app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'uploads')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
-    'DATABASE_URL',
-    'sqlite:///' + os.path.join(BASE_DIR, 'app.db')
+
+
+def normalize_database_uri(raw_uri: str) -> str:
+    if raw_uri.startswith("postgres://"):
+        return raw_uri.replace("postgres://", "postgresql://", 1)
+    return raw_uri
+
+
+app.config['SQLALCHEMY_DATABASE_URI'] = normalize_database_uri(
+    os.getenv('DATABASE_URL', 'sqlite:///' + os.path.join(BASE_DIR, 'app.db'))
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -62,8 +69,35 @@ class Inspection(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+def ensure_inspection_columns():
+    inspector = inspect(db.engine)
+    if "inspections" not in inspector.get_table_names():
+        db.create_all()
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("inspections")}
+    ddl_statements = []
+
+    def add_column(name: str, ddl: str):
+        if name not in existing_columns:
+            ddl_statements.append(f"ALTER TABLE inspections ADD COLUMN {name} {ddl}")
+
+    add_column("cost_estimate", "INTEGER")
+    add_column("accepted_cost", "INTEGER")
+    add_column("status_admin", "VARCHAR(30) DEFAULT 'Pending'")
+    add_column("status_reviewer", "VARCHAR(20) DEFAULT 'Pending'")
+    add_column("comment_admin", "TEXT")
+    add_column("comment_reviewer", "TEXT")
+
+    if ddl_statements:
+        with db.engine.begin() as conn:
+            for ddl in ddl_statements:
+                conn.execute(text(ddl))
+
+
 with app.app_context():
     db.create_all()
+    ensure_inspection_columns()
 
 
 @app.route("/login", methods=["GET", "POST"])

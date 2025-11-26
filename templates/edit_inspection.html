@@ -18,7 +18,6 @@
 
     <form method="post">
       <div class="form-grid">
-        <!-- Cost estimate -->
         <label class="field">
           <span class="field-label">Cost estimate</span>
           {% if role == 'admin' %}
@@ -30,7 +29,6 @@
           {% endif %}
         </label>
 
-        <!-- Accepted cost -->
         <label class="field">
           <span class="field-label">Accepted cost</span>
           {% if role == 'reviewer' %}
@@ -42,7 +40,6 @@
           {% endif %}
         </label>
 
-        <!-- Status -->
         {% if role == 'admin' %}
           <label class="field">
             <span class="field-label">Admin status</span>
@@ -62,3 +59,26 @@
             </select>
           </label>
         {% endif %}
+      </div>
+
+      <div class="form-grid">
+        {% if role == 'admin' %}
+          <label class="field">
+            <span class="field-label">Admin comment</span>
+            <textarea name="comment_admin" placeholder="Notes for reviewer">{{ inspection.comment_admin or '' }}</textarea>
+          </label>
+        {% else %}
+          <label class="field">
+            <span class="field-label">Reviewer comment</span>
+            <textarea name="comment_reviewer" placeholder="Notes for admin">{{ inspection.comment_reviewer or '' }}</textarea>
+          </label>
+        {% endif %}
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">Save changes</button>
+        <a href="{{ url_for('list_inspections') }}" class="btn-ghost">Back to list</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}
