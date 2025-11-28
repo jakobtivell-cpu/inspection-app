@@ -58,7 +58,8 @@ body {
 /* Layout */
 
 .page {
-  max-width: 1120px;
+  width: 100%;
+  max-width: 1440px;  /* UPDATED: wider page so table gets space */
   margin: 32px auto 48px;
   padding: 0 24px;
 }
@@ -190,7 +191,7 @@ textarea:focus {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  white-space: nowrap; /* ADDED: never wrap button text */
+  white-space: nowrap; /* never wrap button text */
 }
 
 .btn-primary {
@@ -264,9 +265,10 @@ textarea:focus {
 
 .data-table {
   width: 100%;
+  min-width: 1200px;  /* UPDATED: prevents table from collapsing */
   border-collapse: collapse;
   font-size: 13px;
-  table-layout: fixed;
+  table-layout: auto; /* UPDATED: columns size to content */
 }
 
 .data-table thead {
@@ -283,7 +285,7 @@ textarea:focus {
   word-break: break-word;
 }
 
-/* ADDED: do NOT allow wrapping inside small controls in the table */
+/* do NOT allow wrapping inside small controls in the table */
 .data-table td a,
 .data-table td button,
 .data-table td .btn-link,
@@ -306,13 +308,28 @@ textarea:focus {
   color: #777777;
 }
 
+/* UPDATED: widen comment columns, keep control columns narrow */
+.data-table th:nth-child(9),
+.data-table th:nth-child(10),
+.data-table td:nth-child(9),
+.data-table td:nth-child(10) {
+  width: 220px;
+}
+
+.data-table th:nth-child(1),
+.data-table td:nth-child(1),
+.data-table th:nth-child(11),
+.data-table td:nth-child(11) {
+  width: 90px;
+}
+
 /* Cost input inline */
 
 .inline-form {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: nowrap; /* ADDED: keep input + Save on same line */
+  flex-wrap: nowrap; /* keep input + Save on same line */
 }
 
 .input-cost {
