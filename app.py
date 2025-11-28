@@ -27,12 +27,7 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 def normalize_database_uri(raw_uri: str) -> str:
     if raw_uri.startswith("postgres://"):
-        raw_uri = raw_uri.replace("postgres://", "postgresql://", 1)
-
-    if raw_uri.startswith("postgresql://") and "sslmode=" not in raw_uri:
-        separator = "?" if "?" not in raw_uri else "&"
-        raw_uri = f"{raw_uri}{separator}sslmode=require"
-
+        return raw_uri.replace("postgres://", "postgresql://", 1)
     return raw_uri
 
 
