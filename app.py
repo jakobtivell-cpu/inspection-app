@@ -294,6 +294,9 @@ def view_pdf(inspection_id: int):
 
     if os.path.exists(inspection.pdf_file_path):
         with open(inspection.pdf_file_path, "rb") as f:
+    file_path = os.path.join(app.config["UPLOAD_FOLDER"], inspection.pdf_filename)
+    if os.path.exists(file_path):
+        with open(file_path, "rb") as f:
             data = f.read()
         inspection.pdf_data = data
         db.session.commit()
@@ -306,6 +309,7 @@ def view_pdf(inspection_id: int):
 
     flash("PDF file could not be found", "error")
     return redirect(url_for("list_inspections"))
+
 
 
 @app.route("/inspection/<int:inspection_id>/delete_pdf", methods=["POST"])
@@ -324,7 +328,15 @@ def delete_pdf(inspection_id: int):
 
     flash("PDF deleted", "success")
     return redirect(url_for("edit_inspection", inspection_id=inspection.id))
+    file_path = os.path.join(app.config["UPLOAD_FOLDER"], inspection.pdf_filename)
+    if os.path.exists(file_path):
+        os.remove(file_path)
 
+    inspection.pdf_data = None
+    db.session.commit()
+
+    flash("PDF deleted", "success")
+    return redirect(url_for("edit_inspection", inspection_id=inspection.id))
 
 if __name__ == "__main__":
     app.run(debug=True)
