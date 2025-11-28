@@ -13,6 +13,11 @@
         <a href="{{ url_for('view_pdf', inspection_id=inspection.id) }}" class="btn-secondary" target="_blank">
           Open PDF
         </a>
+        {% if role == 'admin' %}
+          <form method="post" action="{{ url_for('delete_pdf', inspection_id=inspection.id) }}" style="display:inline" onsubmit="return confirm('Delete the PDF permanently?');">
+            <button type="submit" class="btn-ghost">Delete PDF</button>
+          </form>
+        {% endif %}
       </div>
     </div>
 
