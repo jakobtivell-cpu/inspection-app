@@ -42,9 +42,13 @@
         {% for inspection in inspections %}
           <tr>
             <td>
-              <a href="{{ url_for('view_pdf', inspection_id=inspection.id) }}"
-                 class="btn-ghost"
-                 target="_blank">View</a>
+              {% if inspection.has_pdf %}
+                <a href="{{ url_for('view_pdf', inspection_id=inspection.id) }}"
+                   class="btn-ghost"
+                   target="_blank">View</a>
+              {% else %}
+                <span class="subtle">Deleted</span>
+              {% endif %}
             </td>
             <td>{{ inspection.registration_number }}</td>
             <td>{{ inspection.dealer_name or "-" }}</td>
