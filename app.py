@@ -79,6 +79,16 @@ class Inspection(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    @property
+    def pdf_file_path(self) -> str:
+        return os.path.join(app.config["UPLOAD_FOLDER"], self.pdf_filename)
+
+    @property
+    def has_pdf(self) -> bool:
+        if self.pdf_data:
+            return True
+        return os.path.exists(self.pdf_file_path)
+
 
 def ensure_inspection_columns():
     inspector = inspect(db.engine)
@@ -282,6 +292,8 @@ def view_pdf(inspection_id: int):
             as_attachment=False,
         )
 
+    if os.path.exists(inspection.pdf_file_path):
+        with open(inspection.pdf_file_path, "rb") as f:
     file_path = os.path.join(app.config["UPLOAD_FOLDER"], inspection.pdf_filename)
     if os.path.exists(file_path):
         with open(file_path, "rb") as f:
@@ -308,6 +320,14 @@ def delete_pdf(inspection_id: int):
         flash("Only admin can delete PDFs", "error")
         return redirect(url_for("edit_inspection", inspection_id=inspection.id))
 
+    if os.path.exists(inspection.pdf_file_path):
+        os.remove(inspection.pdf_file_path)
+
+    inspection.pdf_data = None
+    db.session.commit()
+
+    flash("PDF deleted", "success")
+    return redirect(url_for("edit_inspection", inspection_id=inspection.id))
     file_path = os.path.join(app.config["UPLOAD_FOLDER"], inspection.pdf_filename)
     if os.path.exists(file_path):
         os.remove(file_path)
