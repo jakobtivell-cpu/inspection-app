@@ -10,9 +10,18 @@
         </p>
       </div>
       <div>
-        <a href="{{ url_for('view_pdf', inspection_id=inspection.id) }}" class="btn-secondary" target="_blank">
-          Open PDF
-        </a>
+        {% if inspection.has_pdf %}
+          <a href="{{ url_for('view_pdf', inspection_id=inspection.id) }}" class="btn-secondary" target="_blank">
+            Open PDF
+          </a>
+        {% else %}
+          <span class="btn-secondary disabled" aria-disabled="true" title="No PDF available">Open PDF</span>
+        {% endif %}
+        {% if role == 'admin' %}
+          <form method="post" action="{{ url_for('delete_pdf', inspection_id=inspection.id) }}" style="display:inline" onsubmit="return confirm('Delete the PDF permanently?');">
+            <button type="submit" class="btn-ghost">Delete PDF</button>
+          </form>
+        {% endif %}
       </div>
     </div>
 

@@ -1,8 +1,18 @@
 import os
+from io import BytesIO
 from datetime import datetime
 from functools import wraps
 
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, flash
+from flask import (
+    Flask,
+    flash,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    session,
+    url_for,
+)
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from sqlalchemy import or_, text, inspect
@@ -31,8 +41,8 @@ db = SQLAlchemy(app)
 ALLOWED_EXTENSIONS = {'pdf'}
 
 USERS = {
-    "admin": {"password": "admin123", "role": "admin"},
-    "approver": {"password": "approver123", "role": "reviewer"},
+    "admin": {"password": "#GladPippi28!", "role": "admin"},
+    "approver": {"password": "#GladPingvin12!", "role": "reviewer"},
 }
 
 ADMIN_STATUSES = ["Pending", "Awaiting approval", "Disputed", "Accepted"]
@@ -59,6 +69,7 @@ class Inspection(db.Model):
     registration_number = db.Column(db.String(50), nullable=False)
     dealer_name = db.Column(db.String(120), nullable=True)
     pdf_filename = db.Column(db.String(255), nullable=False)
+    pdf_data = db.Column(db.LargeBinary, nullable=True)
     cost_estimate = db.Column(db.Integer, nullable=True)
     accepted_cost = db.Column(db.Integer, nullable=True)
     status_admin = db.Column(db.String(30), default="Pending")
@@ -67,6 +78,16 @@ class Inspection(db.Model):
     comment_reviewer = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @property
+    def pdf_file_path(self) -> str:
+        return os.path.join(app.config["UPLOAD_FOLDER"], self.pdf_filename)
+
+    @property
+    def has_pdf(self) -> bool:
+        if self.pdf_data:
+            return True
+        return os.path.exists(self.pdf_file_path)
 
 
 def ensure_inspection_columns():
@@ -82,12 +103,16 @@ def ensure_inspection_columns():
         if name not in existing_columns:
             ddl_statements.append(f"ALTER TABLE inspections ADD COLUMN {name} {ddl}")
 
+    dialect = db.engine.url.get_dialect().name
+    binary_type = "BYTEA" if dialect == "postgresql" else "BLOB"
+
     add_column("cost_estimate", "INTEGER")
     add_column("accepted_cost", "INTEGER")
     add_column("status_admin", "VARCHAR(30) DEFAULT 'Pending'")
     add_column("status_reviewer", "VARCHAR(20) DEFAULT 'Pending'")
     add_column("comment_admin", "TEXT")
     add_column("comment_reviewer", "TEXT")
+    add_column("pdf_data", binary_type)
 
     if ddl_statements:
         with db.engine.begin() as conn:
@@ -168,12 +193,15 @@ def upload_inspection():
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         filename = f"{timestamp}_{filename}"
         file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-        file.save(file_path)
+        file_bytes = file.read()
+        with open(file_path, "wb") as f:
+            f.write(file_bytes)
 
         inspection = Inspection(
             registration_number=registration_number,
             dealer_name=dealer_name or None,
             pdf_filename=filename,
+            pdf_data=file_bytes,
             status_admin="Pending",
             status_reviewer="Pending",
         )
@@ -256,11 +284,46 @@ def update_accepted_cost(inspection_id: int):
 @login_required
 def view_pdf(inspection_id: int):
     inspection = Inspection.query.get_or_404(inspection_id)
-    return send_from_directory(
-        app.config["UPLOAD_FOLDER"],
-        inspection.pdf_filename,
-        as_attachment=False
-    )
+    if inspection.pdf_data:
+        return send_file(
+            BytesIO(inspection.pdf_data),
+            mimetype="application/pdf",
+            download_name=inspection.pdf_filename,
+            as_attachment=False,
+        )
+
+    if os.path.exists(inspection.pdf_file_path):
+        with open(inspection.pdf_file_path, "rb") as f:
+            data = f.read()
+        inspection.pdf_data = data
+        db.session.commit()
+        return send_file(
+            BytesIO(data),
+            mimetype="application/pdf",
+            download_name=inspection.pdf_filename,
+            as_attachment=False,
+        )
+
+    flash("PDF file could not be found", "error")
+    return redirect(url_for("list_inspections"))
+
+
+@app.route("/inspection/<int:inspection_id>/delete_pdf", methods=["POST"])
+@login_required
+def delete_pdf(inspection_id: int):
+    inspection = Inspection.query.get_or_404(inspection_id)
+    if session.get("role") != "admin":
+        flash("Only admin can delete PDFs", "error")
+        return redirect(url_for("edit_inspection", inspection_id=inspection.id))
+
+    if os.path.exists(inspection.pdf_file_path):
+        os.remove(inspection.pdf_file_path)
+
+    inspection.pdf_data = None
+    db.session.commit()
+
+    flash("PDF deleted", "success")
+    return redirect(url_for("edit_inspection", inspection_id=inspection.id))
 
 
 if __name__ == "__main__":
