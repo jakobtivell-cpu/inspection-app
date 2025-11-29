@@ -332,5 +332,11 @@ def delete_pdf(inspection_id: int):
     flash("PDF deleted", "success")
     return redirect(url_for("edit_inspection", inspection_id=inspection.id))
 
+
+@app.route("/referral")
+def referral_preview():
+    """Static preview that mirrors the provided referral reward design."""
+    return render_template("referral.html")
+
 if __name__ == "__main__":
     app.run(debug=True)
