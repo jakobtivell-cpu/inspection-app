@@ -297,9 +297,7 @@ def view_pdf(inspection_id: int):
             as_attachment=False,
         )
 
-    if os.path.exists(inspection.pdf_file_path):
-        with open(inspection.pdf_file_path, "rb") as f:
-    file_path = os.path.join(app.config["UPLOAD_FOLDER"], inspection.pdf_filename)
+    file_path = inspection.pdf_file_path
     if os.path.exists(file_path):
         with open(file_path, "rb") as f:
             data = f.read()
@@ -327,15 +325,6 @@ def delete_pdf(inspection_id: int):
 
     if os.path.exists(inspection.pdf_file_path):
         os.remove(inspection.pdf_file_path)
-
-    inspection.pdf_data = None
-    db.session.commit()
-
-    flash("PDF deleted", "success")
-    return redirect(url_for("edit_inspection", inspection_id=inspection.id))
-    file_path = os.path.join(app.config["UPLOAD_FOLDER"], inspection.pdf_filename)
-    if os.path.exists(file_path):
-        os.remove(file_path)
 
     inspection.pdf_data = None
     db.session.commit()
