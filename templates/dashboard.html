@@ -164,7 +164,7 @@
                 {% for row in forecast.rows %}
                   <tr>
                     <td>{{ row.asset }}</td>
-                    {% for value in row.monthly_values %}
+                    {% for value in row.values %}
                       <td>{{ value|currency }}</td>
                     {% endfor %}
                   </tr>

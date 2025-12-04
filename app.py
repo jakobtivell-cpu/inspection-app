@@ -294,7 +294,7 @@ def build_forecast(rows: list[dict], current_date: date, horizon_months: int = 1
 
         forecast_rows.append({
             "asset": f"{row['Registreringsnummer']} ({row['Fabrikat/Modell']})",
-            "monthly_values": values,
+            "values": values,
         })
 
     summary_row = [total if total else None for total in depreciation_totals]
