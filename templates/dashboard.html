@@ -101,4 +101,85 @@
       </tbody>
     </table>
   </div>
+
+  {% if session.get('role') == 'admin' %}
+    <div class="admin-panels">
+      <div class="card">
+        <div class="card-header-row">
+          <div>
+            <h2 class="card-title">Fleet overview (placeholder)</h2>
+            <p class="subtle">All columns from the provided attachment are mapped with the sample values.</p>
+          </div>
+        </div>
+        <div class="table-wrapper wide-table">
+          <table class="data-table asset-table">
+            <thead>
+              <tr>
+                {% for column in asset_columns %}
+                  <th>{{ column }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for asset in admin_assets %}
+                <tr>
+                  {% for column in asset_columns %}
+                    {% set value = asset.get(column, '-') %}
+                    <td>
+                      {% if column in currency_columns %}
+                        {{ value|currency }}
+                      {% elif column in term_columns %}
+                        {{ value }} mån
+                      {% else %}
+                        {{ value }}
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {% if forecast %}
+        <div class="card">
+          <div class="card-header-row">
+            <div>
+              <h2 class="card-title">Forecasted cash need</h2>
+              <p class="subtle">Monthly values based on net price as new, monthly depreciation, registration date, contract term, and today.</p>
+            </div>
+          </div>
+          <div class="table-wrapper wide-table">
+            <table class="data-table forecast-table">
+              <thead>
+                <tr>
+                  <th>Asset</th>
+                  {% for month in forecast.months %}
+                    <th>{{ month }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in forecast.rows %}
+                  <tr>
+                    <td>{{ row.asset }}</td>
+                    {% for value in row.monthly_values %}
+                      <td>{{ value|currency }}</td>
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+                <tr class="summary-row">
+                  <td>Sum depreciation / month</td>
+                  {% for total in forecast.depreciation_totals %}
+                    <td>{{ total|currency }}</td>
+                  {% endfor %}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
 {% endblock %}
