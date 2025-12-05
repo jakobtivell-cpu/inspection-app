@@ -2,6 +2,7 @@ import os
 from io import BytesIO
 from datetime import datetime, date
 from functools import wraps
+from typing import Any, Dict, List, Optional
 
 from flask import (
     Flask,
@@ -603,4 +604,6 @@ def referral_preview():
     return render_template("referral.html")
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    debug_mode = str(os.environ.get("FLASK_DEBUG", "true")).lower() not in {"0", "false", "no"}
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)
