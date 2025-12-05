@@ -1,7 +1,8 @@
 import os
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, date
 from functools import wraps
+from typing import Any, Dict, List, Optional
 
 from flask import (
     Flask,
@@ -16,6 +17,7 @@ from flask import (
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from sqlalchemy import or_, text, inspect
+import calendar
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -52,6 +54,314 @@ USERS = {
 
 ADMIN_STATUSES = ["Pending", "Awaiting approval", "Disputed", "Accepted"]
 REVIEWER_STATUSES = ["Pending", "Approved", "Rejected"]
+
+
+CURRENCY_COLUMNS = {
+    "Köpeskilling",
+    "Netto som begagnad",
+    "Nybilspris",
+    "Ev kreditgivarens kreditgräns",
+    "Återköpspris",
+    "Avdrag för hantering och adm",
+    "Avskrivning",
+    "Avskrivning per månad",
+    "Registreringsavgift",
+    "Ev rabatter",
+}
+
+TERM_COLUMNS = {"Avtalets löptid"}
+
+ASSET_OVERVIEW_COLUMNS = [
+    "Bilnr",
+    "Display",
+    "Fabrikat/Modell",
+    "Märke",
+    "Årsmodell",
+    "Första reg.datum",
+    "Ägaredatum",
+    "Köpsdatum",
+    "Registreringsnummer",
+    "Typ",
+    "Biltyp",
+    "Typ av finansiering",
+    "Finansiär",
+    "Köpeskilling",
+    "Netto som begagnad",
+    "Nybilspris",
+    "Ev kreditgivarens kreditgräns",
+    "Avtalets löptid",
+    "Återköpspris",
+    "Avdrag för hantering och adm",
+    "Avskrivning",
+    "Avskrivning per månad",
+    "Registreringsavgift",
+    "Ev rabatter",
+]
+
+
+def parse_date(date_str: str) -> date:
+    return datetime.strptime(date_str, "%d-%m-%Y").date()
+
+
+PLACEHOLDER_ASSETS = [
+    {
+        "Bilnr": "KP20P236784",
+        "Display": 2,
+        "Fabrikat/Modell": "FH16 HEAVY DUTY",
+        "Märke": "VOLVO",
+        "Årsmodell": 2020,
+        "Första reg.datum": "25-11-2020",
+        "Ägaredatum": "25-11-2020",
+        "Köpsdatum": "06-03-2023",
+        "Registreringsnummer": "HEM17R",
+        "Typ": 3,
+        "Biltyp": "Traktor",
+        "Typ av finansiering": "Volvofinans",
+        "Finansiär": "Volvofinans",
+        "Köpeskilling": 1201783,
+        "Netto som begagnad": 1201783,
+        "Nybilspris": 2204002,
+        "Ev kreditgivarens kreditgräns": 214090,
+        "Avtalets löptid": 36,
+        "Återköpspris": 547278,
+        "Avdrag för hantering och adm": 0,
+        "Avskrivning": 701814,
+        "Avskrivning per månad": 19494,
+        "Registreringsavgift": 0,
+        "Ev rabatter": 0,
+    },
+    {
+        "Bilnr": "KP20P237804",
+        "Display": 2,
+        "Fabrikat/Modell": "SCANIA 500 S",
+        "Märke": "SCANIA",
+        "Årsmodell": 2019,
+        "Första reg.datum": "27-08-2019",
+        "Ägaredatum": "07-11-2022",
+        "Köpsdatum": "07-11-2022",
+        "Registreringsnummer": "PPM24L",
+        "Typ": 4,
+        "Biltyp": "Lastbil",
+        "Typ av finansiering": "Volvofinans",
+        "Finansiär": "Volvofinans",
+        "Köpeskilling": 1197834,
+        "Netto som begagnad": 1197834,
+        "Nybilspris": 1714768,
+        "Ev kreditgivarens kreditgräns": 91061,
+        "Avtalets löptid": 36,
+        "Återköpspris": 342954,
+        "Avdrag för hantering och adm": 0,
+        "Avskrivning": 508820,
+        "Avskrivning per månad": 14134,
+        "Registreringsavgift": 0,
+        "Ev rabatter": 0,
+    },
+    {
+        "Bilnr": "KP15H114979",
+        "Display": 1,
+        "Fabrikat/Modell": "SCANIA R580",
+        "Märke": "SCANIA",
+        "Årsmodell": 2015,
+        "Första reg.datum": "29-01-2015",
+        "Ägaredatum": "23-05-2023",
+        "Köpsdatum": "23-05-2023",
+        "Registreringsnummer": "XDG99Z",
+        "Typ": 4,
+        "Biltyp": "Lastbil",
+        "Typ av finansiering": "Volvofinans",
+        "Finansiär": "Volvofinans",
+        "Köpeskilling": 489920,
+        "Netto som begagnad": 489920,
+        "Nybilspris": 2289000,
+        "Ev kreditgivarens kreditgräns": 129063,
+        "Avtalets löptid": 36,
+        "Återköpspris": 960445,
+        "Avdrag för hantering och adm": 0,
+        "Avskrivning": 809035,
+        "Avskrivning per månad": 22473,
+        "Registreringsavgift": 0,
+        "Ev rabatter": 0,
+    },
+    {
+        "Bilnr": "KP20P267104",
+        "Display": 2,
+        "Fabrikat/Modell": "SCANIA R580",
+        "Märke": "SCANIA",
+        "Årsmodell": 2015,
+        "Första reg.datum": "17-02-2015",
+        "Ägaredatum": "23-05-2023",
+        "Köpsdatum": "23-05-2023",
+        "Registreringsnummer": "SOT11Z",
+        "Typ": 4,
+        "Biltyp": "Lastbil",
+        "Typ av finansiering": "Volvofinans",
+        "Finansiär": "Volvofinans",
+        "Köpeskilling": 514749,
+        "Netto som begagnad": 514749,
+        "Nybilspris": 2289000,
+        "Ev kreditgivarens kreditgräns": 98451,
+        "Avtalets löptid": 36,
+        "Återköpspris": 891384,
+        "Avdrag för hantering och adm": 0,
+        "Avskrivning": 882030,
+        "Avskrivning per månad": 24390,
+        "Registreringsavgift": 0,
+        "Ev rabatter": 0,
+    },
+    {
+        "Bilnr": "KP16H114995",
+        "Display": 1,
+        "Fabrikat/Modell": "SCANIA R580",
+        "Märke": "SCANIA",
+        "Årsmodell": 2015,
+        "Första reg.datum": "20-02-2015",
+        "Ägaredatum": "23-05-2023",
+        "Köpsdatum": "23-05-2023",
+        "Registreringsnummer": "XOG51W",
+        "Typ": 4,
+        "Biltyp": "Lastbil",
+        "Typ av finansiering": "Volvofinans",
+        "Finansiär": "Volvofinans",
+        "Köpeskilling": 511996,
+        "Netto som begagnad": 511996,
+        "Nybilspris": 2289000,
+        "Ev kreditgivarens kreditgräns": 99888,
+        "Avtalets löptid": 36,
+        "Återköpspris": 869729,
+        "Avdrag för hantering och adm": 0,
+        "Avskrivning": 907285,
+        "Avskrivning per månad": 25202,
+        "Registreringsavgift": 0,
+        "Ev rabatter": 0,
+    },
+    {
+        "Bilnr": "KP20P236184",
+        "Display": 1,
+        "Fabrikat/Modell": "SCANIA R580",
+        "Märke": "SCANIA",
+        "Årsmodell": 2015,
+        "Första reg.datum": "03-03-2015",
+        "Ägaredatum": "23-05-2023",
+        "Köpsdatum": "23-05-2023",
+        "Registreringsnummer": "XOG51W",
+        "Typ": 4,
+        "Biltyp": "Lastbil",
+        "Typ av finansiering": "Volvofinans",
+        "Finansiär": "Volvofinans",
+        "Köpeskilling": 521578,
+        "Netto som begagnad": 521578,
+        "Nybilspris": 2289000,
+        "Ev kreditgivarens kreditgräns": 107615,
+        "Avtalets löptid": 36,
+        "Återköpspris": 748551,
+        "Avdrag för hantering och adm": 0,
+        "Avskrivning": 1018835,
+        "Avskrivning per månad": 28301,
+        "Registreringsavgift": 0,
+        "Ev rabatter": 0,
+    },
+]
+
+
+def format_currency(value: Optional[Any]) -> str:
+    if value is None:
+        return "-"
+
+    try:
+        if isinstance(value, str):
+            sanitized = (
+                value.replace("kr", "")
+                .replace(" ", "")
+                .replace(",", "")
+                .replace("\u00a0", "")
+            )
+            numeric_value = int(float(sanitized))
+        else:
+            numeric_value = int(value)
+    except (TypeError, ValueError):
+        return "-"
+
+    return f"{numeric_value:,.0f} kr".replace(",", " ")
+
+
+def first_of_month(dt: date) -> date:
+    return date(dt.year, dt.month, 1)
+
+
+def add_months(base_date: date, months: int) -> date:
+    month = base_date.month - 1 + months
+    year = base_date.year + month // 12
+    month = month % 12 + 1
+    day = min(base_date.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def months_between(start: date, end: date) -> int:
+    return (end.year - start.year) * 12 + (end.month - start.month)
+
+
+def build_forecast(rows: List[Dict[str, Any]], current_date: date, horizon_months: int = 12):
+    parsed_assets: List[Dict[str, Any]] = []
+    max_term = 0
+
+    for row in rows:
+        try:
+            registration_date = parse_date(str(row["Första reg.datum"]))
+            months_in_term = int(row["Avtalets löptid"])
+            monthly_depreciation = int(row["Avskrivning per månad"])
+            net_price_new = int(row["Nybilspris"])
+        except (KeyError, ValueError, TypeError):
+            # Skip malformed rows to avoid breaking the admin dashboard
+            continue
+
+        parsed_assets.append({
+            "registration_date": registration_date,
+            "months_in_term": months_in_term,
+            "monthly_depreciation": monthly_depreciation,
+            "net_price_new": net_price_new,
+            "registration": row.get("Registreringsnummer") or row.get("Bilnr") or "Unknown",
+            "model": row.get("Fabrikat/Modell") or "Asset",
+        })
+
+        if months_in_term > max_term:
+            max_term = months_in_term
+
+    resolved_horizon = max(horizon_months, max_term + 1)
+    months = [add_months(first_of_month(current_date), offset) for offset in range(resolved_horizon)]
+    month_labels = [month.strftime("%Y-%m") for month in months]
+
+    forecast_rows = []
+    depreciation_totals = [0 for _ in months]
+
+    for asset in parsed_assets:
+        values: List[Optional[int]] = []
+        for idx, month in enumerate(months):
+            months_since_registration = months_between(asset["registration_date"], month)
+            if months_since_registration < 0 or months_since_registration > asset["months_in_term"]:
+                values.append(None)
+                continue
+
+            depreciated_value = max(
+                asset["net_price_new"] - asset["monthly_depreciation"] * months_since_registration, 0
+            )
+            values.append(depreciated_value)
+            depreciation_totals[idx] += asset["monthly_depreciation"]
+
+        forecast_rows.append({
+            "asset": f"{asset['registration']} ({asset['model']})",
+            "monthly_values": values,
+        })
+
+    summary_row = [total if total else None for total in depreciation_totals]
+
+    return {
+        "months": month_labels,
+        "rows": forecast_rows,
+        "depreciation_totals": summary_row,
+    }
+
+
+app.jinja_env.filters["currency"] = format_currency
 
 
 def allowed_file(filename: str) -> bool:
@@ -174,7 +484,18 @@ def list_inspections():
             )
         )
     inspections = query.order_by(Inspection.created_at.desc()).all()
-    return render_template("dashboard.html", inspections=inspections, search_query=q)
+    admin_assets = PLACEHOLDER_ASSETS if session.get("role") == "admin" else []
+    forecast = build_forecast(admin_assets, datetime.utcnow().date()) if admin_assets else None
+    return render_template(
+        "dashboard.html",
+        inspections=inspections,
+        search_query=q,
+        asset_columns=ASSET_OVERVIEW_COLUMNS,
+        admin_assets=admin_assets,
+        forecast=forecast,
+        currency_columns=CURRENCY_COLUMNS,
+        term_columns=TERM_COLUMNS,
+    )
 
 
 @app.route("/upload", methods=["GET", "POST"])
@@ -339,4 +660,6 @@ def referral_preview():
     return render_template("referral.html")
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    debug_mode = str(os.environ.get("FLASK_DEBUG", "true")).lower() not in {"0", "false", "no"}
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)

@@ -271,6 +271,10 @@ textarea:focus {
   table-layout: auto; /* UPDATED: columns size to content */
 }
 
+.wide-table .data-table {
+  min-width: 1800px;
+}
+
 .data-table thead {
   background-color: #fafafa;
 }
@@ -372,6 +376,23 @@ textarea:focus {
   overflow: visible;
   text-overflow: unset;
   line-height: 1.25;
+}
+
+.admin-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 24px;
+}
+
+.asset-table th,
+.asset-table td {
+  white-space: nowrap;
+}
+
+.forecast-table .summary-row td {
+  font-weight: 700;
+  background-color: #fafafa;
 }
 
 /* Optional utility for cells that must never wrap */
