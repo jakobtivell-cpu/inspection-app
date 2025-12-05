@@ -56,21 +56,6 @@ ADMIN_STATUSES = ["Pending", "Awaiting approval", "Disputed", "Accepted"]
 REVIEWER_STATUSES = ["Pending", "Approved", "Rejected"]
 
 
-CURRENCY_COLUMNS = {
-    "Köpeskilling",
-    "Netto som begagnad",
-    "Nybilspris",
-    "Ev kreditgivarens kreditgräns",
-    "Återköpspris",
-    "Avdrag för hantering och adm",
-    "Avskrivning",
-    "Avskrivning per månad",
-    "Registreringsavgift",
-    "Ev rabatter",
-}
-
-TERM_COLUMNS = {"Avtalets löptid"}
-
 ASSET_OVERVIEW_COLUMNS = [
     "Bilnr",
     "Display",
@@ -263,25 +248,10 @@ PLACEHOLDER_ASSETS = [
 ]
 
 
-def format_currency(value: Optional[Any]) -> str:
+def format_currency(value: int | None) -> str:
     if value is None:
         return "-"
-
-    try:
-        if isinstance(value, str):
-            sanitized = (
-                value.replace("kr", "")
-                .replace(" ", "")
-                .replace(",", "")
-                .replace("\u00a0", "")
-            )
-            numeric_value = int(float(sanitized))
-        else:
-            numeric_value = int(value)
-    except (TypeError, ValueError):
-        return "-"
-
-    return f"{numeric_value:,.0f} kr".replace(",", " ")
+    return f"{value:,.0f} kr".replace(",", " ")
 
 
 def first_of_month(dt: date) -> date:
@@ -300,56 +270,32 @@ def months_between(start: date, end: date) -> int:
     return (end.year - start.year) * 12 + (end.month - start.month)
 
 
-def build_forecast(rows: List[Dict[str, Any]], current_date: date, horizon_months: int = 12):
-    parsed_assets: List[Dict[str, Any]] = []
-    max_term = 0
-
-    for row in rows:
-        try:
-            registration_date = parse_date(str(row["Första reg.datum"]))
-            months_in_term = int(row["Avtalets löptid"])
-            monthly_depreciation = int(row["Avskrivning per månad"])
-            net_price_new = int(row["Nybilspris"])
-        except (KeyError, ValueError, TypeError):
-            # Skip malformed rows to avoid breaking the admin dashboard
-            continue
-
-        parsed_assets.append({
-            "registration_date": registration_date,
-            "months_in_term": months_in_term,
-            "monthly_depreciation": monthly_depreciation,
-            "net_price_new": net_price_new,
-            "registration": row.get("Registreringsnummer") or row.get("Bilnr") or "Unknown",
-            "model": row.get("Fabrikat/Modell") or "Asset",
-        })
-
-        if months_in_term > max_term:
-            max_term = months_in_term
-
-    resolved_horizon = max(horizon_months, max_term + 1)
-    months = [add_months(first_of_month(current_date), offset) for offset in range(resolved_horizon)]
+def build_forecast(rows: list[dict], current_date: date, horizon_months: int = 12):
+    months = [add_months(first_of_month(current_date), offset) for offset in range(horizon_months)]
     month_labels = [month.strftime("%Y-%m") for month in months]
 
     forecast_rows = []
     depreciation_totals = [0 for _ in months]
 
-    for asset in parsed_assets:
-        values: List[Optional[int]] = []
+    for row in rows:
+        registration_date = parse_date(row["Första reg.datum"])
+        months_in_term = int(row["Avtalets löptid"])
+        monthly_depreciation = int(row["Avskrivning per månad"])
+        net_price_new = int(row["Nybilspris"])
+
+        values = []
         for idx, month in enumerate(months):
-            months_since_registration = months_between(asset["registration_date"], month)
-            if months_since_registration < 0 or months_since_registration > asset["months_in_term"]:
+            months_since_registration = months_between(registration_date, month)
+            if months_since_registration < 0 or months_since_registration > months_in_term:
                 values.append(None)
                 continue
-
-            depreciated_value = max(
-                asset["net_price_new"] - asset["monthly_depreciation"] * months_since_registration, 0
-            )
+            depreciated_value = max(net_price_new - monthly_depreciation * months_since_registration, 0)
             values.append(depreciated_value)
-            depreciation_totals[idx] += asset["monthly_depreciation"]
+            depreciation_totals[idx] += monthly_depreciation
 
         forecast_rows.append({
-            "asset": f"{asset['registration']} ({asset['model']})",
-            "monthly_values": values,
+            "asset": f"{row['Registreringsnummer']} ({row['Fabrikat/Modell']})",
+            "values": values,
         })
 
     summary_row = [total if total else None for total in depreciation_totals]
@@ -493,8 +439,6 @@ def list_inspections():
         asset_columns=ASSET_OVERVIEW_COLUMNS,
         admin_assets=admin_assets,
         forecast=forecast,
-        currency_columns=CURRENCY_COLUMNS,
-        term_columns=TERM_COLUMNS,
     )
 
 

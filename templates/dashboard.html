@@ -124,11 +124,11 @@
               {% for asset in admin_assets %}
                 <tr>
                   {% for column in asset_columns %}
-                    {% set value = asset.get(column, '-') %}
+                    {% set value = asset[column] %}
                     <td>
-                      {% if column in currency_columns %}
+                      {% if column in ['Köpeskilling', 'Netto som begagnad', 'Nybilspris', 'Ev kreditgivarens kreditgräns', 'Återköpspris', 'Avdrag för hantering och adm', 'Avskrivning', 'Avskrivning per månad', 'Registreringsavgift', 'Ev rabatter'] %}
                         {{ value|currency }}
-                      {% elif column in term_columns %}
+                      {% elif column == 'Avtalets löptid' %}
                         {{ value }} mån
                       {% else %}
                         {{ value }}
@@ -164,7 +164,7 @@
                 {% for row in forecast.rows %}
                   <tr>
                     <td>{{ row.asset }}</td>
-                    {% for value in row.monthly_values %}
+                    {% for value in row.values %}
                       <td>{{ value|currency }}</td>
                     {% endfor %}
                   </tr>
